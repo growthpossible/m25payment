@@ -40,9 +40,9 @@
     if (!email || !email.includes('@')) {
       document.getElementById('error').textContent = 'Invalid or missing email. Please use the link from your email.';
     } else {
-      // ✅ Load PayPal SDK
+      // ✅ Load PayPal SDK dynamically
       const script = document.createElement('script');
-      script.src = 'https://www.paypal.com/sdk/js?client-id=AeZna8zphSMf-Ar6jxndWWC4ITRE2yXhUIfC159N8j6Yn_gVs013KH5fbLUAguxq9Lf6yyv4u1dWQ-MS&currency=USD';
+      script.src = 'https://www.sandbox.paypal.com/sdk/js?client-id=AZGev2fqD6RjYwuYeVDmbf3ycewI-zAB-MVIJASwciYX4MqFF5Zi8CzvdWl5EFoTGJ30ySXKok7JkYj6&currency=USD';
       script.onload = () => {
         paypal.Buttons({
           createOrder: (data, actions) => {
@@ -50,7 +50,7 @@
               purchase_units: [{
                 description: 'How to Make Marriage Work in 2025 (Full Ebook)',
                 amount: { value: '14.97' },
-                custom_id: email // links to your sheet
+                custom_id: email
               }]
             });
           },
