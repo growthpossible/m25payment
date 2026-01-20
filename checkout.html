@@ -40,7 +40,7 @@
     if (!email || !email.includes('@')) {
       document.getElementById('error').textContent = 'Invalid or missing email. Please use the link from your email.';
     } else {
-      // ✅ Load PayPal SDK dynamically
+      // ✅ Load PayPal Sandbox SDK with CORRECT client ID
       const script = document.createElement('script');
       script.src = 'https://www.sandbox.paypal.com/sdk/js?client-id=AZGev2fqD6RjYwuYeVDmbf3ycewI-zAB-MVIJASwciYX4MqFF5Zi8CzvdWl5EFoTGJ30ySXKok7JkYj6&currency=USD';
       script.onload = () => {
@@ -56,15 +56,21 @@
           },
           onApprove: async (data, actions) => {
             try {
-              const response = await fetch('https://script.google.com/macros/s/AKfycbznBw2lKg-AKEpioH1bg8pjBupGYmytpUBZFE-01RRojEBA7FJQj2GQZN-0NZcm3tbE/exec', {
+              // ✅ Use form-encoded POST to avoid CORS preflight
+              const urlParams = new URLSearchParams();
+              urlParams.append('action', 'verify_payment');
+              urlParams.append('orderID', data.orderID);
+              urlParams.append('email', email);
+
+              const response = await fetch('https://script.google.com/macros/s/AKfycbwQHDgr7QbMQy2z5jNOcCCxFfDsplQ1Jw5TF9_NbkHd0gDuC4hdG8JH5AxjTR8AIgTj/exec', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  action: 'verify_payment',
-                  orderID: data.orderID,
-                  email: email
-                })
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: urlParams.toString()
               });
+
+              // ⚠️ Even though we send form data, we still expect JSON back
               const result = await response.json();
               if (result.success) {
                 window.location.href = 'https://sites.google.com/view/thankyou4purchase';
@@ -72,7 +78,7 @@
                 document.getElementById('error').textContent = 'Payment verified but fulfillment failed. Contact support.';
               }
             } catch (err) {
-              console.error(err);
+              console.error('Fetch error:', err);
               document.getElementById('error').textContent = 'Connection error. Please try again.';
             }
           },
