@@ -1,49 +1,29 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Test</title>
-  <script src="https://www.paypal.com/sdk/js?client-id=AeZna8zphSMf-Ar6jxndWWC4ITRE2yXhUIfC159N8j6Yn_gVs013KH5fbLUAguxq9Lf6yyv4u1dWQ-MS&currency=USD"></script>
-</head>
+<head><title>Test Web App</title></head>
 <body>
-  <h2>Test Checkout</h2>
-  <div id="paypal-button-container"></div>
+  <h2>Testing Fulfillment...</h2>
+  <pre id="output"></pre>
+
   <script>
-    paypal.Buttons({
-      createOrder: (data, actions) => {
-        return actions.order.create({
-          purchase_units: [{
-            description: "Test Ebook",
-            amount: { value: "14.97" },
-            custom_id: "jonah.henry.svl@gmail.com"
-          }]
-        });
-      },
-      onApprove: async (data, actions) => {
-        try {
-          const response = await fetch('https://script.google.com/macros/s/AKfycbwQHDgr7QbMQy2z5jNOcCCxFfDsplQ1Jw5TF9_NbkHd0gDuC4hdG8JH5AxjTR8AIgTj/exec', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              action: 'verify_payment', 
-              orderID: data.orderID, 
-              email: 'jonah.henry.svl@gmail.com' 
-            })
-          });
-          const result = await response.json();
-          if (result.success) {
-            alert("✅ SUCCESS! Check your email and Google Sheet.");
-          } else {
-            alert("❌ FAILED: " + JSON.stringify(result));
-          }
-        } catch (err) {
-          console.error("Fetch error:", err);
-          alert("💥 CONNECTION ERROR:\n" + err.message);
-        }
-      },
-      onError: (err) => {
-        alert("PayPal Error: " + err.message);
-      }
-    }).render('#paypal-button-container');
+    fetch('https://script.google.com/macros/s/AKfycbz0HJo3a-auyL-r7b5ezAJi_LgpAhMqm2XNX1knwP9tIqZN61_CB2xLmIzKs8Qzew3s/exec', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'verify_payment',
+        orderID: 'TEST123',
+        email: 'jonah.henry.svl@gmail.com'
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+      console.log(data);
+    })
+    .catch(err => {
+      document.getElementById('output').textContent = 'Error: ' + err.message;
+      console.error(err);
+    });
   </script>
 </body>
 </html>
