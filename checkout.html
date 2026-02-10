@@ -57,10 +57,10 @@
       color: #7f8c8d;
       font-size: 0.9rem;
     }
-    .secure-badge img {
-      height: 24px;
-      vertical-align: middle;
-      margin: 0 4px;
+    .processing {
+      padding: 15px;
+      color: #2c6fbb;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -83,7 +83,7 @@
   </div>
 
   <script>
-    // ✅ Get email from URL (sanitized)
+    // ✅ Get and sanitize email from URL
     const params = new URLSearchParams(window.location.search);
     const emailParam = params.get('email');
     const email = decodeURIComponent(emailParam || '').trim();
@@ -96,10 +96,9 @@
       document.getElementById('error').textContent = 'Invalid email address. Please use the link from your welcome email.';
       console.error('Invalid email parameter:', emailParam);
     } else {
-      // ✅ Load PayPal Sandbox SDK (NO TRAILING SPACES)
+      // ✅ Load PayPal SDK (NO TRAILING SPACES)
       const script = document.createElement('script');
       script.src = 'https://www.sandbox.paypal.com/sdk/js?client-id=AZGev2fqD6RjYwuYeVDmbf3ycewI-zAB-MVIJASwciYX4MqFF5Zi8CzvdWl5EFoTGJ30ySXKok7JkYj6&currency=USD';
-      script.setAttribute('data-sdk-integration-source', 'button-factory');
       
       script.onload = () => {
         try {
@@ -116,43 +115,45 @@
                 purchase_units: [{
                   description: 'How to Make Marriage Work in 2025 (Full Ebook)',
                   amount: { value: '14.97' },
-                  custom_id: email // Critical for backend matching
+                  custom_id: email
                 }]
               });
             },
             onApprove: async (data, actions) => {
               // Show processing state
               document.getElementById('paypal-button-container').innerHTML = 
-                '<div style="padding:15px; color:#2c6fbb">✅ Payment approved! Delivering your ebook...</div>';
+                '<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
               
               try {
-                // ✅ SEND JSON PAYLOAD (FIXED: was form-urlencoded)
+                // ✅ CRITICAL FIX: Use form-urlencoded (avoids CORS preflight)
+                const formData = new URLSearchParams();
+                formData.append('action', 'verify_payment');
+                formData.append('orderID', data.orderID);
+                formData.append('email', email);
+
                 const response = await fetch('https://script.google.com/macros/s/AKfycbyOnsThZDOd4qXJOqiZP-USha8HSz3RXhui1b95wKp4Qx6k3FGEZYTKIaTCp1n9T1QQ/exec', {
                   method: 'POST',
                   headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/x-www-form-urlencoded'
                   },
-                  body: JSON.stringify({
-                    action: 'verify_payment',
-                    orderID: data.orderID,
-                    email: email
-                  })
+                  body: formData.toString()
                 });
 
-                // Handle non-OK responses
-                if (!response.ok) {
-                  throw new Error(`Server returned ${response.status}: ${await response.text()}`);
+                // Apps Script returns text/plain even for JSON - parse carefully
+                const text = await response.text();
+                let result;
+                try {
+                  result = JSON.parse(text);
+                } catch (e) {
+                  throw new Error('Invalid server response: ' + text.substring(0, 100));
                 }
 
-                const result = await response.json();
-                
                 if (result.success) {
-                  // Redirect to thank you page after brief delay for user feedback
                   setTimeout(() => {
                     window.location.href = 'https://sites.google.com/view/thankyou4purchase';
-                  }, 1500);
+                  }, 1200);
                 } else {
-                  throw new Error(result.error || 'Payment verified but ebook delivery failed. Contact support.');
+                  throw new Error(result.error || 'Payment verified but ebook delivery failed');
                 }
               } catch (err) {
                 console.error('Fulfillment error:', err);
@@ -160,38 +161,74 @@
                 document.getElementById('error').textContent = 
                   `Delivery failed: ${err.message}. Your payment was processed. Contact support@growthpossible.com for immediate assistance.`;
                 
-                // Restore PayPal button after error
+                // Restore button
                 document.getElementById('paypal-button-container').innerHTML = '';
                 paypal.Buttons({
                   style: { shape: 'pill', color: 'gold', layout: 'vertical', label: 'paypal', height: 48 },
-                  createOrder: (data, actions) => actions.order.create({ /* same as above */ }),
-                  onApprove: async (data, actions) => { /* same handler */ },
-                  onError: (err) => { /* same error handler */ }
+                  createOrder: (data, actions) => actions.order.create({
+                    purchase_units: [{
+                      description: 'How to Make Marriage Work in 2025 (Full Ebook)',
+                      amount: { value: '14.97' },
+                      custom_id: email
+                    }]
+                  }),
+                  onApprove: async (data, actions) => {
+                    document.getElementById('paypal-button-container').innerHTML = 
+                      '<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
+                    // Reuse the same fulfillment logic
+                    const formData = new URLSearchParams();
+                    formData.append('action', 'verify_payment');
+                    formData.append('orderID', data.orderID);
+                    formData.append('email', email);
+                    
+                    try {
+                      const response = await fetch('https://script.google.com/macros/s/AKfycbyOnsThZDOd4qXJOqiZP-USha8HSz3RXhui1b95wKp4Qx6k3FGEZYTKIaTCp1n9T1QQ/exec', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formData.toString()
+                      });
+                      
+                      const text = await response.text();
+                      const result = JSON.parse(text);
+                      
+                      if (result.success) {
+                        setTimeout(() => {
+                          window.location.href = 'https://sites.google.com/view/thankyou4purchase';
+                        }, 1200);
+                      } else {
+                        throw new Error(result.error);
+                      }
+                    } catch (e) {
+                      document.getElementById('error').style.display = 'block';
+                      document.getElementById('error').textContent = 'Second attempt failed. Please contact support.';
+                    }
+                  },
+                  onError: (err) => {
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('error').textContent = 'Payment system error. Please refresh and try again.';
+                  }
                 }).render('#paypal-button-container');
               }
             },
             onError: (err) => {
               console.error('PayPal SDK error:', err);
               document.getElementById('error').style.display = 'block';
-              document.getElementById('error').textContent = 
-                'Payment system error. Please refresh the page and try again.';
+              document.getElementById('error').textContent = 'Payment system unavailable. Please refresh the page.';
             },
-            onCancel: (data) => {
-              console.log('Payment cancelled by user');
+            onCancel: () => {
+              console.log('Payment cancelled');
             }
           }).render('#paypal-button-container');
         } catch (initError) {
-          console.error('PayPal button initialization failed:', initError);
+          console.error('Button init failed:', initError);
           document.getElementById('error').style.display = 'block';
-          document.getElementById('error').textContent = 
-            'Payment system unavailable. Please try again in a few minutes.';
+          document.getElementById('error').textContent = 'Payment system failed to load. Please refresh.';
         }
       };
       
       script.onerror = () => {
         document.getElementById('error').style.display = 'block';
-        document.getElementById('error').textContent = 
-          'Failed to load payment system. Check your internet connection.';
+        document.getElementById('error').textContent = 'Failed to load payment system. Check your connection.';
       };
       
       document.head.appendChild(script);
