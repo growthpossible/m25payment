@@ -61,6 +61,8 @@
       padding: 15px;
       color: #2c6fbb;
       font-weight: bold;
+      background: #e7f3ff;
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -125,12 +127,13 @@
                 '<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
               
               try {
-                // ✅ CRITICAL FIX: Use form-urlencoded (avoids CORS preflight)
+                // ✅ Prepare form-urlencoded data
                 const formData = new URLSearchParams();
                 formData.append('action', 'verify_payment');
                 formData.append('orderID', data.orderID);
                 formData.append('email', email);
 
+                // ✅ Send POST request to Apps Script Web App
                 const response = await fetch('https://script.google.com/macros/s/AKfycbyOnsThZDOd4qXJOqiZP-USha8HSz3RXhui1b95wKp4Qx6k3FGEZYTKIaTCp1n9T1QQ/exec', {
                   method: 'POST',
                   headers: {
@@ -139,29 +142,38 @@
                   body: formData.toString()
                 });
 
-                // Apps Script returns text/plain even for JSON - parse carefully
+                // ✅ CORRECT LOGGING ORDER: Declare variable FIRST, then log
                 const text = await response.text();
+                console.log("✅ Server response RAW TEXT:", text);
+                
+                // ✅ Parse JSON AFTER logging raw text
                 let result;
                 try {
                   result = JSON.parse(text);
-                } catch (e) {
-                  throw new Error('Invalid server response: ' + text.substring(0, 100));
+                  console.log("✅ Server response PARSED OBJECT:", result);
+                } catch (parseError) {
+                  console.error("❌ JSON parse failed. Raw response:", text);
+                  throw new Error("Invalid server response format from fulfillment service");
                 }
 
+                // ✅ Check result and redirect
                 if (result.success) {
+                  console.log("✅ Fulfillment successful! Redirecting to thank you page...");
                   setTimeout(() => {
                     window.location.href = 'https://sites.google.com/view/thankyou4purchase';
                   }, 1200);
                 } else {
+                  console.error("❌ Fulfillment failed on server:", result.error);
                   throw new Error(result.error || 'Payment verified but ebook delivery failed');
                 }
               } catch (err) {
-                console.error('Fulfillment error:', err);
+                // ✅ Catch and display any errors
+                console.error("💥 FULFILLMENT FLOW ERROR:", err);
                 document.getElementById('error').style.display = 'block';
                 document.getElementById('error').textContent = 
                   `Delivery failed: ${err.message}. Your payment was processed. Contact support@growthpossible.com for immediate assistance.`;
                 
-                // Restore button
+                // Restore PayPal button for retry
                 document.getElementById('paypal-button-container').innerHTML = '';
                 paypal.Buttons({
                   style: { shape: 'pill', color: 'gold', layout: 'vertical', label: 'paypal', height: 48 },
@@ -175,21 +187,24 @@
                   onApprove: async (data, actions) => {
                     document.getElementById('paypal-button-container').innerHTML = 
                       '<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
-                    // Reuse the same fulfillment logic
+                    
                     const formData = new URLSearchParams();
                     formData.append('action', 'verify_payment');
                     formData.append('orderID', data.orderID);
                     formData.append('email', email);
                     
                     try {
-                      const response = await fetch('https://script.google.com/macros/s/AKfycbznv5SK3qfbH5cOqKYxPLwFNyF_wlt9iC6kHd9-RyX9kQ_rEmgHQLfrOGFRMuUMSIoq/exec', {
+                      const response = await fetch('https://script.google.com/macros/s/AKfycbw1XUZCLKfhIH91msZ-aQTAR-3l7fNYYIZLcPx9oceqBEPiKKuK4I50kk4CST6Evgg/exec', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: formData.toString()
                       });
                       
                       const text = await response.text();
+                      console.log("Retry - Server response RAW:", text);
+                      
                       const result = JSON.parse(text);
+                      console.log("Retry - Server response PARSED:", result);
                       
                       if (result.success) {
                         setTimeout(() => {
@@ -199,6 +214,7 @@
                         throw new Error(result.error);
                       }
                     } catch (e) {
+                      console.error("Retry failed:", e);
                       document.getElementById('error').style.display = 'block';
                       document.getElementById('error').textContent = 'Second attempt failed. Please contact support.';
                     }
@@ -213,22 +229,22 @@
             onError: (err) => {
               console.error('PayPal SDK error:', err);
               document.getElementById('error').style.display = 'block';
-              document.getElementById('error').textContent = 'Payment system unavailable. Please refresh the page.';
+              document.getElementById('error').textContent = 'Payment system unavailable. Please refresh the page and try again.';
             },
             onCancel: () => {
-              console.log('Payment cancelled');
+              console.log('Payment cancelled by user');
             }
           }).render('#paypal-button-container');
         } catch (initError) {
-          console.error('Button init failed:', initError);
+          console.error('PayPal button initialization failed:', initError);
           document.getElementById('error').style.display = 'block';
-          document.getElementById('error').textContent = 'Payment system failed to load. Please refresh.';
+          document.getElementById('error').textContent = 'Payment system failed to load. Please refresh the page.';
         }
       };
       
       script.onerror = () => {
         document.getElementById('error').style.display = 'block';
-        document.getElementById('error').textContent = 'Failed to load payment system. Check your connection.';
+        document.getElementById('error').textContent = 'Failed to load payment system. Check your internet connection.';
       };
       
       document.head.appendChild(script);
