@@ -51,6 +51,7 @@ display: none;
 margin-top: 1.5rem;
 text-align: center;
 min-height: 50px;
+position: relative;
 }
 .secure-badge {
 text-align: center;
@@ -78,6 +79,10 @@ text-decoration: underline;
 cursor: pointer;
 font-weight: bold;
 }
+.loading-fallback {
+padding: 20px;
+text-align: center;
+}
 </style>
 </head>
 <body>
@@ -90,7 +95,13 @@ font-weight: bold;
 </div>
 <div id="error"></div>
 <div id="paypal-button-container">
-  <div style="padding: 20px; color: #666;">Initializing payment system...</div>
+  <div class="loading-fallback">
+    <div>Loading PayPal...</div>
+    <div style="font-size: 12px; color: #666; margin-top: 10px;">
+      If this takes longer than 10 seconds, 
+      <span class="retry-link" onclick="forceReload()">click here</span>
+    </div>
+  </div>
 </div>
 <div class="secure-badge">
 🔒 Secure payment via PayPal • Instant delivery • 30-day satisfaction guarantee
@@ -109,35 +120,46 @@ var userEmail = decodeURIComponent(emailParam || '').trim();
 
 function showError(msg) {
   document.getElementById('error').innerHTML = msg + 
-    ' <span class="retry-link" onclick="location.reload(true)">Refresh page</span>';
+    ' <span class="retry-link" onclick="forceReload()">Refresh</span>';
   document.getElementById('error').style.display = 'block';
+}
+
+function forceReload() {
+  window.location.href = window.location.href.split('?')[0] + '?email=' + 
+    encodeURIComponent(userEmail) + '&t=' + Date.now();
 }
 
 // Validate email
 if (!userEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
   showError('Invalid email. Please use the link from your welcome email.');
 } else if (typeof paypal === 'undefined') {
-  showError('PayPal failed to load. Check your connection or');
+  showError('PayPal failed to load. Check your connection.');
 } else {
-  // Wait for DOM ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initPayPal);
-  } else {
-    initPayPal();
-  }
+  // Small delay to ensure PayPal is fully ready
+  setTimeout(initPayPal, 500);
 }
 
 function initPayPal() {
   console.log('Initializing PayPal...');
   
   try {
-    // Check if Buttons is available
     if (!paypal.Buttons) {
       throw new Error('PayPal Buttons not available');
     }
     
     // Clear container
-    document.getElementById('paypal-button-container').innerHTML = '';
+    var container = document.getElementById('paypal-button-container');
+    container.innerHTML = '';
+    
+    // Set a timeout to detect if button gets stuck loading
+    var loadingTimeout = setTimeout(function() {
+      console.log('PayPal button appears stuck, showing fallback');
+      container.innerHTML = 
+        '<div class="loading-fallback">' +
+        '<div>PayPal is taking longer than expected...</div>' +
+        '<div style="margin-top: 10px;"><span class="retry-link" onclick="forceReload()">Click here to retry</span></div>' +
+        '</div>';
+    }, 8000);
     
     // Create button
     var button = paypal.Buttons({
@@ -151,6 +173,7 @@ function initPayPal() {
       
       createOrder: function(data, actions) {
         console.log('Creating order...');
+        clearTimeout(loadingTimeout); // Clear stuck detection
         return actions.order.create({
           purchase_units: [{
             description: 'How to Make Marriage Work in 2025 (Full Ebook)',
@@ -165,34 +188,42 @@ function initPayPal() {
       
       onApprove: function(data, actions) {
         console.log('Approved:', data.orderID);
-        document.getElementById('paypal-button-container').innerHTML =
-          '<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
+        clearTimeout(loadingTimeout);
+        container.innerHTML = '<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
         verifyPayment(data.orderID);
       },
       
       onError: function(err) {
+        clearTimeout(loadingTimeout);
         console.error('PayPal error:', err);
-        showError('Payment error. Please refresh and try again.');
+        showError('Payment error. Please try again.');
       },
       
       onCancel: function() {
+        clearTimeout(loadingTimeout);
         console.log('Cancelled');
-        location.reload(true);
+        forceReload();
+      },
+      
+      onInit: function(data, actions) {
+        console.log('PayPal button initialized');
+        // Button is ready, clear the stuck timeout
+        setTimeout(function() {
+          clearTimeout(loadingTimeout);
+        }, 1000);
       }
     });
     
-    // Check if button is eligible
     if (!button.isEligible()) {
-      throw new Error('PayPal button not eligible for this browser');
+      throw new Error('PayPal not eligible');
     }
     
-    // Render
     button.render('#paypal-button-container');
-    console.log('PayPal button rendered');
+    console.log('PayPal render called');
     
   } catch (e) {
     console.error('Init error:', e);
-    showError('Failed to initialize payment: ' + e.message + '. Please');
+    showError('Failed to initialize: ' + e.message);
   }
 }
 
@@ -222,7 +253,7 @@ function verifyPayment(orderID) {
   
   script.onerror = function() {
     cleanup();
-    showError('Server error. Contact support@growthpossible.com.');
+    showError('Server error. Contact support.');
   };
   
   setTimeout(function() {
