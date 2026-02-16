@@ -64,6 +64,13 @@ font-weight: bold;
 background: #e7f3ff;
 border-radius: 4px;
 }
+.success {
+padding: 15px;
+color: #28a745;
+font-weight: bold;
+background: #d4edda;
+border-radius: 4px;
+}
 </style>
 </head>
 <body>
@@ -85,8 +92,10 @@ border-radius: 4px;
 const params = new URLSearchParams(window.location.search);
 const emailParam = params.get('email');
 const email = decodeURIComponent(emailParam || '').trim();
+
 // Validate email format
 const isValidEmail = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
 if (!isValidEmail) {
 document.getElementById('error').style.display = 'block';
 document.getElementById('error').textContent = 'Invalid email address. Please use the link from your welcome email.';
@@ -118,94 +127,73 @@ onApprove: async (data, actions) => {
 // Show processing state
 document.getElementById('paypal-button-container').innerHTML =
 '<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
+
 try {
-// ✅ Prepare form-urlencoded data
-const formData = new URLSearchParams();
-formData.append('action', 'verify_payment');
-formData.append('orderID', data.orderID);
-formData.append('email', email);
-// ✅ Send POST request to Apps Script Web App — UPDATED URL
-const response = await fetch('https://script.google.com/macros/s/AKfycbyjvfulriEqBY9cl7a4ujTO18VVJbG2g7bj4znMt_vB9GJWDmBW_zd48Igu5mTYjaBF/exec', {
-method: 'POST',
-headers: {
-'Content-Type': 'application/x-www-form-urlencoded'
-},
-body: formData.toString()
-});
-// ✅ CORRECT LOGGING ORDER: Declare variable FIRST, then log
-const text = await response.text();
-console.log("✅ Server response RAW TEXT:", text);
-// ✅ Parse JSON AFTER logging raw text
-let result;
-try {
-result = JSON.parse(text);
-console.log("✅ Server response PARSED OBJECT:", result);
-} catch (parseError) {
-console.error("❌ JSON parse failed. Raw response:", text);
-throw new Error("Invalid server response format from fulfillment service");
+// ✅ Use JSONP to bypass CORS
+const result = await new Promise((resolve, reject) => {
+const callbackName = 'paypalCallback_' + Date.now();
+const script = document.createElement('script');
+
+// Set up global callback
+window[callbackName] = (response) => {
+delete window[callbackName];
+if (script.parentNode) document.head.removeChild(script);
+resolve(response);
+};
+
+// Handle script load error
+script.onerror = () => {
+delete window[callbackName];
+if (script.parentNode) document.head.removeChild(script);
+reject(new Error('Failed to load verification script'));
+};
+
+// Timeout fallback
+const timeoutId = setTimeout(() => {
+if (window[callbackName]) {
+delete window[callbackName];
+if (script.parentNode) document.head.removeChild(script);
+reject(new Error('Verification timeout - please check your email for the ebook'));
 }
-// ✅ Check result and redirect
+}, 15000);
+
+// Override callback to clear timeout
+const originalCallback = window[callbackName];
+window[callbackName] = (response) => {
+clearTimeout(timeoutId);
+originalCallback(response);
+};
+
+// Build URL with parameters
+const params = new URLSearchParams({
+action: 'verify_payment',
+orderID: data.orderID,
+email: email,
+callback: callbackName
+});
+
+script.src = 'https://script.google.com/macros/s/AKfycbzV6b-FwHG0BO8tB7NYImFd_AwKuu0CRaVWTflj2Iv-7UOfTm0qRdWeGnTiMAbEln2w/exec?' + params.toString();
+document.head.appendChild(script);
+});
+
+console.log("Server response:", result);
+
 if (result.success) {
-console.log("✅ Fulfillment successful! Redirecting to thank you page...");
+console.log("✅ Fulfillment successful! Redirecting...");
+document.getElementById('paypal-button-container').innerHTML =
+'<div class="success">✅ Success! Check your email for the ebook.</div>';
 setTimeout(() => {
 window.location.href = 'https://sites.google.com/view/thankyou4purchase';
-}, 1200);
+}, 1500);
 } else {
-console.error("❌ Fulfillment failed on server:", result.error);
 throw new Error(result.error || 'Payment verified but ebook delivery failed');
 }
+
 } catch (err) {
-// ✅ Catch and display any errors
 console.error("💥 FULFILLMENT FLOW ERROR:", err);
 document.getElementById('error').style.display = 'block';
 document.getElementById('error').textContent =
 `Delivery failed: ${err.message}. Your payment was processed. Contact support@growthpossible.com for immediate assistance.`;
-// Restore PayPal button for retry
-document.getElementById('paypal-button-container').innerHTML = '';
-paypal.Buttons({
-style: { shape: 'pill', color: 'gold', layout: 'vertical', label: 'paypal', height: 48 },
-createOrder: (data, actions) => actions.order.create({
-purchase_units: [{
-description: 'How to Make Marriage Work in 2025 (Full Ebook)',
-amount: { value: '14.97' },
-custom_id: email
-}]
-}),
-onApprove: async (data, actions) => {
-document.getElementById('paypal-button-container').innerHTML =
-'<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
-const formData = new URLSearchParams();
-formData.append('action', 'verify_payment');
-formData.append('orderID', data.orderID);
-formData.append('email', email);
-try {
-const response = await fetch('https://script.google.com/macros/s/AKfycbyjvfulriEqBY9cl7a4ujTO18VVJbG2g7bj4znMt_vB9GJWDmBW_zd48Igu5mTYjaBF/exec', {
-method: 'POST',
-headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-body: formData.toString()
-});
-const text = await response.text();
-console.log("Retry - Server response RAW:", text);
-const result = JSON.parse(text);
-console.log("Retry - Server response PARSED:", result);
-if (result.success) {
-setTimeout(() => {
-window.location.href = 'https://sites.google.com/view/thankyou4purchase';
-}, 1200);
-} else {
-throw new Error(result.error);
-}
-} catch (e) {
-console.error("Retry failed:", e);
-document.getElementById('error').style.display = 'block';
-document.getElementById('error').textContent = 'Second attempt failed. Please contact support.';
-}
-},
-onError: (err) => {
-document.getElementById('error').style.display = 'block';
-document.getElementById('error').textContent = 'Payment system error. Please refresh and try again.';
-}
-}).render('#paypal-button-container');
 }
 },
 onError: (err) => {
