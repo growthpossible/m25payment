@@ -74,6 +74,19 @@ font-weight: bold;
 background: #d4edda;
 border-radius: 4px;
 }
+.retry-btn {
+background: #ffc439;
+color: #000;
+padding: 10px 20px;
+border: none;
+border-radius: 4px;
+cursor: pointer;
+font-weight: bold;
+margin-top: 10px;
+}
+.retry-btn:hover {
+background: #ffb700;
+}
 </style>
 </head>
 <body>
@@ -85,113 +98,158 @@ border-radius: 4px;
 📚 Includes: Full 60+ page ebook • 5 bonus resources ($47 value) • Lifetime updates
 </div>
 <div id="error"></div>
-<div id="paypal-button-container"></div>
+<div id="paypal-button-container">
+  <div class="processing">Loading payment system...</div>
+</div>
 <div class="secure-badge">
 🔒 Secure payment via PayPal • Instant delivery • 30-day satisfaction guarantee
 </div>
 </div>
 <script>
-// Clear any cached PayPal scripts
-if (window.paypal) {
-  delete window.paypal;
-}
+// Global variables
+var paypalLoadAttempts = 0;
+var maxPayPalAttempts = 3;
 
 // ✅ Get and sanitize email from URL
-const urlParams = new URLSearchParams(window.location.search);
-const emailParam = urlParams.get('email');
-const userEmail = decodeURIComponent(emailParam || '').trim();
+var urlParams = new URLSearchParams(window.location.search);
+var emailParam = urlParams.get('email');
+var userEmail = decodeURIComponent(emailParam || '').trim();
 
 // Validate email format
-const isValidEmail = userEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail);
+var isValidEmail = userEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail);
 
 if (!isValidEmail) {
-  document.getElementById('error').style.display = 'block';
-  document.getElementById('error').textContent = 'Invalid email address. Please use the link from your welcome email.';
+  showError('Invalid email address. Please use the link from your welcome email.');
   console.error('Invalid email parameter:', emailParam);
 } else {
-  // ✅ Load PayPal SDK with cache busting
-  const paypalScript = document.createElement('script');
-  paypalScript.src = 'https://www.sandbox.paypal.com/sdk/js?client-id=AZGev2fqD6RjYwuYeVDmbf3ycewI-zAB-MVIJASwciYX4MqFF5Zi8CzvdWl5EFoTGJ30ySXKok7JkYj6&currency=USD&disable-funding=card,credit&intent=capture&v=' + Date.now();
-  
-  paypalScript.onload = function() {
-    console.log('PayPal SDK loaded successfully');
-    
-    try {
-      // Render PayPal button with NO capture in onApprove
-      paypal.Buttons({
-        style: {
-          shape: 'pill',
-          color: 'gold',
-          layout: 'vertical',
-          label: 'paypal',
-          height: 48
-        },
-        
-        createOrder: function(data, actions) {
-          return actions.order.create({
-            purchase_units: [{
-              description: 'How to Make Marriage Work in 2025 (Full Ebook)',
-              amount: { 
-                currency_code: 'USD',
-                value: '14.97' 
-              },
-              custom_id: userEmail
-            }],
-            application_context: {
-              shipping_preference: 'NO_SHIPPING',
-              user_action: 'PAY_NOW',
-              return_url: window.location.href,
-              cancel_url: window.location.href
-            }
-          });
-        },
-        
-        // ✅ NO capture here - just handle the approval
-        onApprove: function(data, actions) {
-          console.log('Payment approved, order ID:', data.orderID);
-          
-          // Show processing immediately
-          document.getElementById('paypal-button-container').innerHTML =
-            '<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
-          
-          // Call backend to verify and capture
-          verifyPayment(data.orderID, userEmail);
-        },
-        
-        onError: function(err) {
-          console.error('PayPal error:', err);
-          document.getElementById('error').style.display = 'block';
-          document.getElementById('error').textContent = 'Payment error: ' + (err.message || 'Unknown error');
-        },
-        
-        onCancel: function() {
-          console.log('Payment cancelled');
-        }
-        
-      }).render('#paypal-button-container');
-      
-    } catch (err) {
-      console.error('Error rendering PayPal button:', err);
-      document.getElementById('error').style.display = 'block';
-      document.getElementById('error').textContent = 'Failed to load payment button. Please refresh.';
-    }
-  };
-  
-  paypalScript.onerror = function() {
-    document.getElementById('error').style.display = 'block';
-    document.getElementById('error').textContent = 'Failed to load PayPal. Check your connection.';
-  };
-  
-  document.head.appendChild(paypalScript);
+  // Start loading PayPal
+  loadPayPal();
 }
 
-// Separate function to verify payment - NO capture involved
+function showError(message, showRetry) {
+  var errorDiv = document.getElementById('error');
+  errorDiv.innerHTML = message;
+  if (showRetry) {
+    errorDiv.innerHTML += '<br><button class="retry-btn" onclick="location.reload()">Retry Payment</button>';
+  }
+  errorDiv.style.display = 'block';
+  document.getElementById('paypal-button-container').innerHTML = '';
+}
+
+function loadPayPal() {
+  paypalLoadAttempts++;
+  console.log('Loading PayPal, attempt:', paypalLoadAttempts);
+  
+  // Clear any existing PayPal
+  if (window.paypal) {
+    try {
+      delete window.paypal;
+    } catch(e) {
+      window.paypal = undefined;
+    }
+  }
+  
+  // Remove any existing PayPal scripts
+  var existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
+  existingScripts.forEach(function(script) {
+    script.remove();
+  });
+  
+  // Small delay before loading to ensure cleanup
+  setTimeout(function() {
+    var paypalScript = document.createElement('script');
+    paypalScript.src = 'https://www.sandbox.paypal.com/sdk/js?client-id=AZGev2fqD6RjYwuYeVDmbf3ycewI-zAB-MVIJASwciYX4MqFF5Zi8CzvdWl5EFoTGJ30ySXKok7JkYj6&currency=USD&disable-funding=card,credit&intent=capture&v=' + Date.now();
+    
+    paypalScript.onload = function() {
+      console.log('PayPal SDK loaded successfully');
+      if (window.paypal && window.paypal.Buttons) {
+        renderPayPalButton();
+      } else {
+        handlePayPalLoadError('PayPal SDK loaded but Buttons not available');
+      }
+    };
+    
+    paypalScript.onerror = function() {
+      handlePayPalLoadError('Failed to load PayPal SDK script');
+    };
+    
+    document.head.appendChild(paypalScript);
+  }, 100);
+}
+
+function handlePayPalLoadError(message) {
+  console.error(message);
+  if (paypalLoadAttempts < maxPayPalAttempts) {
+    console.log('Retrying PayPal load...');
+    setTimeout(loadPayPal, 1000);
+  } else {
+    showError('Failed to load PayPal. Check your connection or try refreshing the page.', true);
+  }
+}
+
+function renderPayPalButton() {
+  try {
+    document.getElementById('paypal-button-container').innerHTML = '';
+    
+    paypal.Buttons({
+      style: {
+        shape: 'pill',
+        color: 'gold',
+        layout: 'vertical',
+        label: 'paypal',
+        height: 48
+      },
+      
+      createOrder: function(data, actions) {
+        return actions.order.create({
+          purchase_units: [{
+            description: 'How to Make Marriage Work in 2025 (Full Ebook)',
+            amount: { 
+              currency_code: 'USD',
+              value: '14.97' 
+            },
+            custom_id: userEmail
+          }],
+          application_context: {
+            shipping_preference: 'NO_SHIPPING',
+            user_action: 'PAY_NOW'
+          }
+        });
+      },
+      
+      onApprove: function(data, actions) {
+        console.log('Payment approved, order ID:', data.orderID);
+        
+        document.getElementById('paypal-button-container').innerHTML =
+          '<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
+        
+        verifyPayment(data.orderID, userEmail);
+      },
+      
+      onError: function(err) {
+        console.error('PayPal error:', err);
+        showError('Payment error: ' + (err.message || 'Unknown error'), true);
+      },
+      
+      onCancel: function() {
+        console.log('Payment cancelled');
+        document.getElementById('paypal-button-container').innerHTML = '';
+        renderPayPalButton(); // Re-render button
+      }
+      
+    }).render('#paypal-button-container');
+    
+  } catch (err) {
+    console.error('Error rendering PayPal button:', err);
+    showError('Failed to load payment button. Please refresh the page.', true);
+  }
+}
+
 function verifyPayment(orderID, email) {
-  const callbackName = 'cb_' + Date.now();
-  const script = document.createElement('script');
+  var callbackName = 'cb_' + Date.now();
+  var script = document.createElement('script');
   
   window[callbackName] = function(response) {
-    // Cleanup
     delete window[callbackName];
     if (script.parentNode) {
       document.head.removeChild(script);
@@ -207,9 +265,7 @@ function verifyPayment(orderID, email) {
       }, 2000);
     } else {
       var errorMsg = (response && response.error) ? response.error : 'Unknown error';
-      document.getElementById('error').style.display = 'block';
-      document.getElementById('error').textContent = 
-        'Delivery failed: ' + errorMsg + '. Your payment was processed. Contact support@growthpossible.com.';
+      showError('Delivery failed: ' + errorMsg + '. Your payment was processed. Contact support@growthpossible.com.', true);
     }
   };
   
@@ -218,25 +274,19 @@ function verifyPayment(orderID, email) {
     if (script.parentNode) {
       document.head.removeChild(script);
     }
-    document.getElementById('error').style.display = 'block';
-    document.getElementById('error').textContent = 
-      'Delivery failed: Server error. Your payment was processed. Contact support@growthpossible.com.';
+    showError('Delivery failed: Server error. Your payment was processed. Contact support@growthpossible.com.', true);
   };
   
-  // Timeout after 20 seconds
   var timeout = setTimeout(function() {
     if (window[callbackName]) {
       delete window[callbackName];
       if (script.parentNode) {
         document.head.removeChild(script);
       }
-      document.getElementById('error').style.display = 'block';
-      document.getElementById('error').textContent = 
-        'Delivery timeout. Please check your email - the ebook may have been delivered.';
+      showError('Delivery timeout. Please check your email - the ebook may have been delivered.', true);
     }
   }, 20000);
   
-  // Wrap callback to clear timeout
   var originalCallback = window[callbackName];
   window[callbackName] = function(response) {
     clearTimeout(timeout);
@@ -249,7 +299,7 @@ function verifyPayment(orderID, email) {
   params.append('email', email);
   params.append('callback', callbackName);
   
-  script.src = 'https://script.google.com/macros/s/AKfycbwq5aJVrU-MFI3BmkF8puufMLLaqtXyN1dj68DCBYDMgP1WNrEz4qQn2IoYjP1SeCg/exec' + params.toString();
+  script.src = 'https://script.google.com/macros/s/AKfycbyc_I3odPKFNmIKsilcDdXWt6B1j5hzC3Kyi2Votnlhgn_-Fz2aZe4x3qewoX71AqmI/exec?' + params.toString();
   document.head.appendChild(script);
 }
 </script>
