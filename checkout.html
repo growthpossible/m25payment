@@ -101,9 +101,9 @@ document.getElementById('error').style.display = 'block';
 document.getElementById('error').textContent = 'Invalid email address. Please use the link from your welcome email.';
 console.error('Invalid email parameter:', emailParam);
 } else {
-// ✅ Load PayPal SDK (NO TRAILING SPACES)
+// ✅ Load PayPal SDK with commit=true to avoid popup issues
 const script = document.createElement('script');
-script.src = 'https://www.sandbox.paypal.com/sdk/js?client-id=AZGev2fqD6RjYwuYeVDmbf3ycewI-zAB-MVIJASwciYX4MqFF5Zi8CzvdWl5EFoTGJ30ySXKok7JkYj6&currency=USD';
+script.src = 'https://www.sandbox.paypal.com/sdk/js?client-id=AZGev2fqD6RjYwuYeVDmbf3ycewI-zAB-MVIJASwciYX4MqFF5Zi8CzvdWl5EFoTGJ30ySXKok7JkYj6&currency=USD&commit=true&intent=capture';
 script.onload = () => {
 try {
 paypal.Buttons({
@@ -114,24 +114,30 @@ layout: 'vertical',
 label: 'paypal',
 height: 48
 },
+// ✅ Force redirect flow instead of popup to avoid postrobot errors
 createOrder: (data, actions) => {
 return actions.order.create({
 purchase_units: [{
 description: 'How to Make Marriage Work in 2025 (Full Ebook)',
 amount: { value: '14.97' },
 custom_id: email
-}]
+}],
+// This forces the user to complete payment on PayPal's site
+application_context: {
+shipping_preference: 'NO_SHIPPING',
+user_action: 'PAY_NOW'
+}
 });
 },
 onApprove: (data, actions) => {
-// Show processing state immediately
+// Show processing state
 document.getElementById('paypal-button-container').innerHTML =
 '<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
 
-// Use the order ID directly - backend will handle capture
+// ✅ Use redirect flow - capture happens on PayPal's site
+// Just verify with our backend
 const orderID = data.orderID;
 
-// Use JSONP to verify with server
 const callbackName = 'paypalCallback_' + Date.now();
 const script = document.createElement('script');
 
@@ -165,7 +171,6 @@ document.getElementById('error').textContent =
 'Delivery failed: Could not contact server. Your payment was processed. Contact support@growthpossible.com.';
 };
 
-// 15 second timeout
 const timeoutId = setTimeout(() => {
 if (window[callbackName]) {
 delete window[callbackName];
@@ -176,7 +181,6 @@ document.getElementById('error').textContent =
 }
 }, 15000);
 
-// Wrap callback to clear timeout
 const originalCallback = window[callbackName];
 window[callbackName] = (response) => {
 clearTimeout(timeoutId);
