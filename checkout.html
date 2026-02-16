@@ -123,41 +123,60 @@ custom_id: email
 }]
 });
 },
-onApprove: async (data, actions) => {
-// Show processing state
+onApprove: (data, actions) => {
+// Show processing state immediately
 document.getElementById('paypal-button-container').innerHTML =
-'<div class="processing">✅ Payment approved! Processing your order...</div>';
+'<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
 
-try {
-// ✅ CAPTURE THE ORDER FIRST (this changes status from APPROVED to COMPLETED)
-const captureResult = await actions.order.capture();
-console.log("Order captured:", captureResult);
+// Use the order ID directly - backend will handle capture
+const orderID = data.orderID;
 
-// Now verify with your server
-const result = await new Promise((resolve, reject) => {
+// Use JSONP to verify with server
 const callbackName = 'paypalCallback_' + Date.now();
 const script = document.createElement('script');
 
 window[callbackName] = (response) => {
 delete window[callbackName];
 if (script.parentNode) document.head.removeChild(script);
-resolve(response);
+  
+console.log("Server response:", response);
+
+if (response.success) {
+console.log("✅ Fulfillment successful! Redirecting...");
+document.getElementById('paypal-button-container').innerHTML =
+'<div class="success">✅ Success! Check your email for the ebook.</div>';
+setTimeout(() => {
+window.location.href = 'https://sites.google.com/view/thankyou4purchase';
+}, 1500);
+} else {
+console.error("❌ Fulfillment failed on server:", response.error);
+document.getElementById('error').style.display = 'block';
+document.getElementById('error').textContent =
+`Delivery failed: ${response.error || 'Unknown error'}. Your payment was processed. Contact support@growthpossible.com for immediate assistance.`;
+}
 };
 
 script.onerror = () => {
 delete window[callbackName];
 if (script.parentNode) document.head.removeChild(script);
-reject(new Error('Failed to load verification script'));
+console.error("Failed to load verification script");
+document.getElementById('error').style.display = 'block';
+document.getElementById('error').textContent = 
+'Delivery failed: Could not contact server. Your payment was processed. Contact support@growthpossible.com.';
 };
 
+// 15 second timeout
 const timeoutId = setTimeout(() => {
 if (window[callbackName]) {
 delete window[callbackName];
 if (script.parentNode) document.head.removeChild(script);
-reject(new Error('Verification timeout'));
+document.getElementById('error').style.display = 'block';
+document.getElementById('error').textContent = 
+'Delivery timeout. Please check your email - the ebook may have been delivered. If not, contact support@growthpossible.com.';
 }
 }, 15000);
 
+// Wrap callback to clear timeout
 const originalCallback = window[callbackName];
 window[callbackName] = (response) => {
 clearTimeout(timeoutId);
@@ -166,34 +185,13 @@ originalCallback(response);
 
 const params = new URLSearchParams({
 action: 'verify_payment',
-orderID: data.orderID,
+orderID: orderID,
 email: email,
 callback: callbackName
 });
 
 script.src = 'https://script.google.com/macros/s/AKfycbwq5aJVrU-MFI3BmkF8puufMLLaqtXyN1dj68DCBYDMgP1WNrEz4qQn2IoYjP1SeCg/exec?' + params.toString();
 document.head.appendChild(script);
-});
-
-console.log("Server response:", result);
-
-if (result.success) {
-console.log("✅ Fulfillment successful! Redirecting...");
-document.getElementById('paypal-button-container').innerHTML =
-'<div class="success">✅ Success! Check your email for the ebook.</div>';
-setTimeout(() => {
-window.location.href = 'https://sites.google.com/view/thankyou4purchase';
-}, 1500);
-} else {
-throw new Error(result.error || 'Payment verified but ebook delivery failed');
-}
-
-} catch (err) {
-console.error("💥 FULFILLMENT FLOW ERROR:", err);
-document.getElementById('error').style.display = 'block';
-document.getElementById('error').textContent =
-`Delivery failed: ${err.message}. Your payment was processed. Contact support@growthpossible.com for immediate assistance.`;
-}
 },
 onError: (err) => {
 console.error('PayPal SDK error:', err);
