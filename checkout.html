@@ -126,45 +126,44 @@ custom_id: email
 onApprove: async (data, actions) => {
 // Show processing state
 document.getElementById('paypal-button-container').innerHTML =
-'<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
+'<div class="processing">✅ Payment approved! Processing your order...</div>';
 
 try {
-// ✅ Use JSONP to bypass CORS
+// ✅ CAPTURE THE ORDER FIRST (this changes status from APPROVED to COMPLETED)
+const captureResult = await actions.order.capture();
+console.log("Order captured:", captureResult);
+
+// Now verify with your server
 const result = await new Promise((resolve, reject) => {
 const callbackName = 'paypalCallback_' + Date.now();
 const script = document.createElement('script');
 
-// Set up global callback
 window[callbackName] = (response) => {
 delete window[callbackName];
 if (script.parentNode) document.head.removeChild(script);
 resolve(response);
 };
 
-// Handle script load error
 script.onerror = () => {
 delete window[callbackName];
 if (script.parentNode) document.head.removeChild(script);
 reject(new Error('Failed to load verification script'));
 };
 
-// Timeout fallback
 const timeoutId = setTimeout(() => {
 if (window[callbackName]) {
 delete window[callbackName];
 if (script.parentNode) document.head.removeChild(script);
-reject(new Error('Verification timeout - please check your email for the ebook'));
+reject(new Error('Verification timeout'));
 }
 }, 15000);
 
-// Override callback to clear timeout
 const originalCallback = window[callbackName];
 window[callbackName] = (response) => {
 clearTimeout(timeoutId);
 originalCallback(response);
 };
 
-// Build URL with parameters
 const params = new URLSearchParams({
 action: 'verify_payment',
 orderID: data.orderID,
@@ -172,7 +171,7 @@ email: email,
 callback: callbackName
 });
 
-script.src = 'https://script.google.com/macros/s/AKfycbyoqTjxYeLv92cymksORSFGbt4V3zwUCEf_yk_55b6V_hyRVUwynTgtX-nPmawqUWM/exec/exec?' + params.toString();
+script.src = 'https://script.google.com/macros/s/AKfycbyoqTjxYeLv92cymksORSFGbt4V3zwUCEf_yk_55b6V_hyRVUwynTgtX-nPmawqUWM/exec?' + params.toString();
 document.head.appendChild(script);
 });
 
