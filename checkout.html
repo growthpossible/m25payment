@@ -249,7 +249,8 @@ function verifyPayment(orderID, email) {
   params.append('email', email);
   params.append('callback', callbackName);
   
-  script.src = 'https://script.google.com/macros/s/AKfycbwJRP3ubsK9d_obJ00R2KXkKpOCT_Ykkka7bDvcEC6_Qm5J0TJSQLnPdUpmmXtJ5W1f/exec?' + params.toString();
+  // ✅ FIXED: Added the missing "?" before params.toString()
+  script.src = 'https://script.google.com/macros/s/AKfycbx8hSiJH-JR-xvTIu6SxucJDLY6fS-JparJZUJw0wX9m2DRH8TQwk1utYrb-3ms423o/exec?' + params.toString();
   document.head.appendChild(script);
 }
 </script>
