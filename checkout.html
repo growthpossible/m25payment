@@ -111,7 +111,7 @@ if (!isValidEmail) {
 } else {
   // ✅ Load PayPal SDK with cache busting
   const paypalScript = document.createElement('script');
-  paypalScript.src = 'https://www.sandbox.paypal.com/sdk/js?client-id=AZGev2fqD6RjYwuYeVDmbf3ycewI-zAB-MVIJASwciYX4MqFF5Zi8CzvdWl5EFoTGJ30ySXKok7JkYj6&currency=USD&disable-funding=card,credit&intent=capture&v=' + Date.now();
+  paypalScript.src = 'https://www.sandbox.paypal.com/sdk/js?client-id=AcHdD43qCsLzjAHeyh979X0NleuitEmBJC7tmUL9cvKpe3PFoT8zg8Qsju5jm5C-GS2E0zWhFs81y5Ac&currency=USD&disable-funding=card,credit&intent=capture&v=' + Date.now();
   
   paypalScript.onload = function() {
     console.log('PayPal SDK loaded successfully');
