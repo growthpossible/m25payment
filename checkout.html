@@ -109,9 +109,10 @@ if (!isValidEmail) {
   document.getElementById('error').textContent = 'Invalid email address. Please use the link from your welcome email.';
   console.error('Invalid email parameter:', emailParam);
 } else {
-  // ✅ Load PayPal SDK with cache busting
+  // ✅ FIX 1: Use www.paypal.com (not sandbox.paypal.com) for the SDK — the client ID determines sandbox vs live mode
+  // ✅ FIX 2: Removed the &v=Date.now() cache-busting param — PayPal SDK rejects unknown query params
   const paypalScript = document.createElement('script');
-  paypalScript.src = 'https://www.sandbox.paypal.com/sdk/js?client-id=AcHdD43qCsLzjAHeyh979X0NleuitEmBJC7tmUL9cvKpe3PFoT8zg8Qsju5jm5C-GS2E0zWhFs81y5Ac&currency=USD&disable-funding=card,credit&intent=capture&v=' + Date.now();
+  paypalScript.src = 'https://www.paypal.com/sdk/js?client-id=AcHdD43qCsLzjAHeyh979X0NleuitEmBJC7tmUL9cvKpe3PFoT8zg8Qsju5jm5C-GS2E0zWhFs81y5Ac&currency=USD&disable-funding=card,credit&intent=capture';
   
   paypalScript.onload = function() {
     console.log('PayPal SDK loaded successfully');
@@ -146,7 +147,7 @@ if (!isValidEmail) {
           });
         },
         
-        // ✅ NO capture here - just handle the approval
+        // ✅ NO capture here - backend handles capture and delivery
         onApprove: function(data, actions) {
           console.log('Payment approved, order ID:', data.orderID);
           
@@ -185,7 +186,7 @@ if (!isValidEmail) {
   document.head.appendChild(paypalScript);
 }
 
-// Separate function to verify payment - NO capture involved
+// Separate function to verify payment via JSONP - NO capture involved
 function verifyPayment(orderID, email) {
   const callbackName = 'cb_' + Date.now();
   const script = document.createElement('script');
@@ -249,7 +250,6 @@ function verifyPayment(orderID, email) {
   params.append('email', email);
   params.append('callback', callbackName);
   
-  // ✅ FIXED: Added the missing "?" before params.toString()
   script.src = 'https://script.google.com/macros/s/AKfycbx8hSiJH-JR-xvTIu6SxucJDLY6fS-JparJZUJw0wX9m2DRH8TQwk1utYrb-3ms423o/exec?' + params.toString();
   document.head.appendChild(script);
 }
