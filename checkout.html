@@ -112,7 +112,7 @@ if (!isValidEmail) {
   // ✅ FIX 1: Use www.paypal.com (not sandbox.paypal.com) for the SDK — the client ID determines sandbox vs live mode
   // ✅ FIX 2: Removed the &v=Date.now() cache-busting param — PayPal SDK rejects unknown query params
   const paypalScript = document.createElement('script');
-  paypalScript.src = 'https://www.paypal.com/sdk/js?client-id=AcHdD43qCsLzjAHeyh979X0NleuitEmBJC7tmUL9cvKpe3PFoT8zg8Qsju5jm5C-GS2E0zWhFs81y5Ac&currency=USD&disable-funding=credit&intent=capture';
+  paypalScript.src = 'https://www.paypal.com/sdk/js?client-id=AWxGNgdkBaj6QKkAaEv7pRtJF8mWgbAE1TabyYE10BTfx0B_EdvApcwpnRvq9LJdsehpGgU3w-5PLy3c&currency=USD&disable-funding=credit&intent=capture';
   
   paypalScript.onload = function() {
     console.log('PayPal SDK loaded successfully');
