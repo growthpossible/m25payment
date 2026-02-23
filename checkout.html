@@ -134,7 +134,7 @@ if (!isValidEmail) {
               description: 'How to Make Marriage Work in 2025 (Full eBook)',
               amount: { 
                 currency_code: 'USD',
-                value: '14.97' 
+                value: '1.00' 
               },
               custom_id: userEmail
             }],
@@ -250,7 +250,7 @@ function verifyPayment(orderID, email) {
   params.append('email', email);
   params.append('callback', callbackName);
   
-  script.src = 'https://script.google.com/macros/s/AKfycbydc_CbbE1JuFgZ8eaXHGSD1CM5iAje89MNAfjjNlRk_y4YDo5K7NrvsTF1LQ75eGM0/exec?' + params.toString();
+  script.src = 'https://script.google.com/macros/s/AKfycbwL0ZVFedRSGpWVxXSxIQsiwdcow-4zJh2hJ06uy9jUHl50OLKV4gnF9EYv9tgMGyXG/exec?' + params.toString();
   document.head.appendChild(script);
 }
 </script>
