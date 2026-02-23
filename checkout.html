@@ -78,16 +78,16 @@ border-radius: 4px;
 </head>
 <body>
 <div class="container">
-<h1>✨ Get Your Full Ebook</h1>
+<h1>🤝 Get Your Full Ebook</h1>
 <div class="price">$14.97</div>
-<p>You're moments away from unlocking 27 proven strategies to transform your marriage in 2025 and beyond!</p>
+<p>You're moments away from unlocking the proven strategies to transform your marriage in 2026 and beyond!</p>
 <div class="highlight">
-📚 Includes: Full 60+ page ebook • 5 bonus resources ($47 value) • Lifetime updates
+📚 Includes: Full 60+ page ebook • 5 bonus resources ($47 value) • Continuous resources
 </div>
 <div id="error"></div>
 <div id="paypal-button-container"></div>
 <div class="secure-badge">
-🔒 Secure payment via PayPal • Instant delivery • 30-day satisfaction guarantee
+🔒 Secure payment via PayPal • Instant delivery • Satisfaction guarantee
 </div>
 </div>
 <script>
@@ -131,7 +131,7 @@ if (!isValidEmail) {
         createOrder: function(data, actions) {
           return actions.order.create({
             purchase_units: [{
-              description: 'How to Make Marriage Work in 2025 (Full Ebook)',
+              description: 'How to Make Marriage Work in 2025 (Full eBook)',
               amount: { 
                 currency_code: 'USD',
                 value: '14.97' 
@@ -153,7 +153,7 @@ if (!isValidEmail) {
           
           // Show processing immediately
           document.getElementById('paypal-button-container').innerHTML =
-            '<div class="processing">✅ Payment approved! Delivering your ebook...</div>';
+            '<div class="processing">✅ Payment approved! Delivering your eBook to your Inbox...</div>';
           
           // Call backend to verify and capture
           verifyPayment(data.orderID, userEmail);
@@ -202,7 +202,7 @@ function verifyPayment(orderID, email) {
     
     if (response && response.success) {
       document.getElementById('paypal-button-container').innerHTML =
-        '<div class="success">✅ Success! Check your email for the ebook.</div>';
+        '<div class="success">✅ Success! Check your email for the ebook. It might endup in your spam folder. </div>';
       setTimeout(function() {
         window.location.href = 'https://sites.google.com/view/thankyou4purchase';
       }, 2000);
@@ -210,7 +210,7 @@ function verifyPayment(orderID, email) {
       var errorMsg = (response && response.error) ? response.error : 'Unknown error';
       document.getElementById('error').style.display = 'block';
       document.getElementById('error').textContent = 
-        'Delivery failed: ' + errorMsg + '. Your payment was processed. Contact support@growthpossible.com.';
+        'Delivery failed: ' + errorMsg + '. Your payment was processed. Contact growthpossible.4u@gmail.com.';
     }
   };
   
@@ -221,7 +221,7 @@ function verifyPayment(orderID, email) {
     }
     document.getElementById('error').style.display = 'block';
     document.getElementById('error').textContent = 
-      'Delivery failed: Server error. Your payment was processed. Contact support@growthpossible.com.';
+      'Delivery failed: Server error. Your payment was processed. Contact growthpossible.4u@gmail.com.';
   };
   
   // Timeout after 20 seconds
@@ -233,7 +233,7 @@ function verifyPayment(orderID, email) {
       }
       document.getElementById('error').style.display = 'block';
       document.getElementById('error').textContent = 
-        'Delivery timeout. Please check your email - the ebook may have been delivered.';
+        'Delivery timeout. Please check your email inbox or spam folder - the ebook may have been delivered.';
     }
   }, 20000);
   
@@ -250,7 +250,7 @@ function verifyPayment(orderID, email) {
   params.append('email', email);
   params.append('callback', callbackName);
   
-  script.src = 'https://script.google.com/macros/s/AKfycbzWMqxmLN3plCMOzwpfobJg74WZYWCQ934VprUJ-nseS_McTcI11rUmkNMhuImY33BO/exec?' + params.toString();
+  script.src = 'https://script.google.com/macros/s/AKfycbydc_CbbE1JuFgZ8eaXHGSD1CM5iAje89MNAfjjNlRk_y4YDo5K7NrvsTF1LQ75eGM0/exec?' + params.toString();
   document.head.appendChild(script);
 }
 </script>
