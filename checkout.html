@@ -237,7 +237,7 @@ function loadPayPalButton() {
           console.log('Payment approved, order ID:', data.orderID);
 
           document.getElementById('paypal-button-container').innerHTML =
-            '<div class="processing">✅ Payment approved! Delivering your eBook to your Inbox...</div>';
+            '<div class="processing">✅ Payment approved! Your order confirmation and ebook are on their way to your inbox...</div>';
 
           verifyPayment(data.orderID, userEmail);
         },
