@@ -122,22 +122,29 @@ const userEmail = decodeURIComponent(emailParam || '').trim();
 // Validate email format
 const isValidEmail = userEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail);
 
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxYIG9KvCg466r2ECul4ilagBcIplGyWZoRUPAFMMtB7hgg3rgUpNrKHgUFrMO6hzF1/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzKKMvwPGbSkLjrjxzFsWUwzSYYGJPxWIJxNcJYjKMEe7R9KGT8ZiDhJqAKsh0dgLc/exec';
 
 if (!isValidEmail) {
-  document.getElementById('error').style.display = 'block';
-  document.getElementById('error').textContent = 'Invalid email address. Please use the link from your welcome email.';
   document.getElementById('paypal-button-container').innerHTML = '';
+  document.getElementById('error').style.display = 'block';
+  document.getElementById('error').innerHTML =
+    'Invalid or missing email address. Please use the link from your welcome email.<br><br>' +
+    '<small>If you believe this is an error or need assistance, please contact us at ' +
+    '<a href="mailto:growthpossible.4u@gmail.com">growthpossible.4u@gmail.com</a> ' +
+    'and we\'ll get you sorted right away.</small>';
   console.error('Invalid email parameter:', emailParam);
 } else {
   // ✅ NEW: Check purchase status before rendering PayPal button
   checkPurchaseStatus(userEmail, function(alreadyPurchased) {
     if (alreadyPurchased) {
       // ✅ Buyer revisiting — show already purchased message, no PayPal button
-      document.getElementById('paypal-button-container').innerHTML =
+        document.getElementById('paypal-button-container').innerHTML =
         '<div class="already-purchased">✅ You\'ve already purchased this ebook!<br><br>' +
-        '<small>Check your email inbox (or spam folder) for your download link.<br>' +
-        'Need help? Contact us at <a href="mailto:growthpossible.4u@gmail.com">growthpossible.4u@gmail.com</a></small></div>';
+        '<a href="https://drive.google.com/uc?export=download&id=1WaUukhciwRMzlfw8sCw_pz2lh3Q5T3Yn" ' +
+        'style="background:#ffc439; color:#000; padding:10px 20px; text-decoration:none; border-radius:4px; font-weight:bold; display:inline-block; margin: 10px 0;">'+
+        '📘 Download Your Ebook Again</a><br><br>' +
+        '<small>Can\'t download? Check your email inbox or spam folder for your original delivery email.<br>' +
+        'Still need help? Contact us at <a href="mailto:growthpossible.4u@gmail.com">growthpossible.4u@gmail.com</a></small></div>';
     } else {
       // ✅ Not yet purchased — load PayPal button as normal
       loadPayPalButton();
@@ -275,10 +282,12 @@ function verifyPayment(orderID, email) {
 
     if (response && response.success) {
       document.getElementById('paypal-button-container').innerHTML =
-        '<div class="success">✅ Success! Check your email for the ebook. It might end up in your spam folder.</div>';
+        '<div class="success">✅ Payment successful! Your ebook and order confirmation are on their way to your inbox. ' +
+        'Please check your spam folder if you don\'t see them within 5 minutes.<br><br>' +
+        '<small>You will be redirected shortly...</small></div>';
       setTimeout(function() {
         window.location.href = 'https://sites.google.com/view/thankyou4purchase';
-      }, 2000);
+      }, 5000);
     } else {
       var errorMsg = (response && response.error) ? response.error : 'Unknown error';
       document.getElementById('error').style.display = 'block';
@@ -300,9 +309,10 @@ function verifyPayment(orderID, email) {
     if (window[callbackName]) {
       delete window[callbackName];
       if (script.parentNode) document.head.removeChild(script);
-      document.getElementById('error').style.display = 'block';
-      document.getElementById('error').textContent =
-        'Delivery timeout. Please check your email inbox or spam folder - the ebook may have been delivered.';
+      document.getElementById('paypal-button-container').innerHTML =
+        '<div class="processing">⏳ This is taking longer than expected. Your payment was successful — ' +
+        'your ebook will arrive within the next 5 minutes. Please check your inbox and spam folder. ' +
+        'Need help? Contact us at <a href="mailto:growthpossible.4u@gmail.com">growthpossible.4u@gmail.com</a></div>';
     }
   }, 20000);
 
